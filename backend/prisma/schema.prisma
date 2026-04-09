@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ENGINEER
+  HEALTHCARE_PROFESSIONAL
+  ADMIN
+}
+
+enum PostStatus {
+  DRAFT
+  ACTIVE
+  MEETING_SCHEDULED
+  PARTNER_FOUND
+  EXPIRED
+}
+
+enum ProjectStage {
+  IDEA
+  CONCEPT_VALIDATION
+  PROTOTYPE_DEVELOPED
+  PILOT_TESTING
+  PRE_DEPLOYMENT
+}
+
+model User {
+  id                String           @id @default(uuid())
+  fullName          String
+  email             String           @unique
+  passwordHash      String
+  role              UserRole
+  institution       String?
+  city              String?
+  country           String?
+  isEmailVerified   Boolean          @default(false)
+  verificationToken String?
+  isActive          Boolean          @default(true)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  posts           Post[]
+  meetingRequests MeetingRequest[] @relation("RequesterMeetings")
+  activityLogs    ActivityLog[]
+  notifications   Notification[]
+}
+
+model Post {
+  id                String           @id @default(uuid())
+  title             String
+  workingDomain     String
+  shortExplanation  String
+  requiredExpertise String
+  projectStage      ProjectStage
+  commitmentLevel   String
+  highLevelIdea     String?
+  collaborationType String?
+  confidentiality   String
+  country           String
+  city              String
+  expiryDate        DateTime?
+  autoClose         Boolean          @default(false)
+  status            PostStatus       @default(DRAFT)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  userId            String
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  meetingRequests   MeetingRequest[]
+}
+
+model MeetingRequest {
+  id           String   @id @default(uuid())
+  message      String?
+  proposedTime DateTime?
+  status       String   @default("PENDING")
+  ndaAccepted  Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  postId       String
+  post         Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  requesterId  String
+  requester    User     @relation("RequesterMeetings", fields: [requesterId], references: [id], onDelete: Cascade)
+}
+
+model ActivityLog {
+  id           String   @id @default(uuid())
+  actionType   String
+  targetEntity String
+  resultStatus String
+  ipAddress    String?
+  createdAt    DateTime @default(now())
+
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  message   String
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+}
