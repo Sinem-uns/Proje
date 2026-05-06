@@ -1,0 +1,59 @@
+services:
+
+  postgres:
+    image: postgres:16
+    container_name: healthai_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: healthai
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    container_name: healthai_backend
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "5000:5000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/healthai
+      JWT_SECRET: supersecret
+      PORT: 5000
+      FRONTEND_ORIGIN: http://localhost:5173
+      # ── Email (SMTP) ──────────────────────────────────────────────
+      # Leave blank to use Ethereal (free catch-all test inbox).
+      # Check backend container logs for the preview URL of sent emails.
+      #
+      # To use a real SMTP server, uncomment and fill in:
+      # SMTP_HOST: smtp.gmail.com
+      # SMTP_PORT: 587
+      # SMTP_SECURE: "false"
+      # SMTP_USER: your@gmail.com
+      # SMTP_PASS: your-app-password
+    command: sh -c "npx prisma db push && (npx prisma db seed || true) && npm run dev"
+
+  frontend:
+    build: ./frontend
+    container_name: healthai_frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:5000
+
+volumes:
+  postgres_data:
